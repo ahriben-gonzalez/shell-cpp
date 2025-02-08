@@ -1,2 +1,2 @@
-# codecrafters-shell-cpp
+# shell-cpp
 C++ Shell Project
