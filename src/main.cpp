@@ -52,6 +52,14 @@ bool exists(const std::filesystem::path &path, const std::string &filename)
   return false;
 }
 
+std::string join(const std::vector<std::string>& vec, std::string delimeter) {
+    std::ostringstream stream;
+    for (auto& elem : vec) {
+        stream << elem << delimeter;
+    }
+    return stream.str();
+}
+
 int main()
 {
   // Flush after every std::cout / std:cerr
@@ -124,7 +132,33 @@ int main()
     }
     case UNKNOWN:
     {
-      std::cout << input << ": command not found" << std::endl;
+      std::string cmdpath = "";
+      bool found = false;
+
+      // check in PATH dirs
+      for (std::string p : paths)
+      {
+        std::filesystem::path search_path = p;
+        if (exists(search_path, cmdtype))
+        {
+          cmdpath = p;
+          break;
+        }
+      }
+
+      if (!cmdpath.empty())
+      {
+        //std::string fullcmd = cmdpath + '/' + cmdtype;
+        //splitcmds[0] = fullcmd;
+
+        std::string fullcmd_args = join(splitcmds, " ");
+        system(fullcmd_args.c_str());
+      }
+      else
+      {
+        std::cout << input << ": command not found" << std::endl;
+      }
+
       break;
     }
     default:
