@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <set>
 
-std::set<std::string> builtin = {"exit", "echo", "type"};
+std::set<std::string> builtin = {"exit", "echo", "type", "pwd"};
 
 std::vector<std::string> split(const std::string &s, char delim)
 {
@@ -107,7 +107,6 @@ public:
       std::cout << cmd << " is a shell builtin" << std::endl;
       return 0;
     }
-  
 
     // check in PATH dirs
     for (std::string p : paths)
@@ -170,10 +169,24 @@ public:
   }
 };
 
-void freecommands(std::unordered_map<std::string, Command *> commands){
-    for (const auto& pair : commands) {
-        delete pair.second;
-    }
+class Pwd : public Command
+{
+public:
+  using Command::Command;
+  virtual int execute(std::string &input)
+  {
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::cout <<  currentPath.string() << std::endl;
+    return 0;
+  }
+};
+
+void freecommands(std::unordered_map<std::string, Command *> commands)
+{
+  for (const auto &pair : commands)
+  {
+    delete pair.second;
+  }
 }
 
 int main()
@@ -190,6 +203,7 @@ int main()
   commands["echo"] = new Echo(paths);
   commands["type"] = new Type(paths);
   commands["unknown"] = new Unknown(paths);
+  commands["pwd"] = new Pwd(paths);
 
   while (true)
   {
@@ -200,7 +214,6 @@ int main()
     std::vector<std::string> splitcmds = split(input, ' ');
     std::string cmdtype = splitcmds.at(0);
 
-    Command c;
     if (commands.find(cmdtype) == commands.end())
     {
       commands["unknown"]->execute(input);
