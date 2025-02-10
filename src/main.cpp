@@ -4,24 +4,56 @@
 #include <vector>
 #include <sstream>
 #include <filesystem>
+#include <set>
 
-typedef enum CMDS
+std::set<std::string> builtin = {"exit", "echo", "type"};
+
+std::vector<std::string> split(const std::string &s, char delim)
 {
-  EXIT,
-  ECHO,
-  TYPE,
-  UNKNOWN
-};
+  std::vector<std::string> elems;
+  std::stringstream ss(s);
+  std::string item;
+  while (std::getline(ss, item, delim))
+  {
+    elems.push_back(item);
+  }
+  return elems;
+}
+
+bool exists(const std::filesystem::path &path, const std::string &filename)
+{
+  if (!std::filesystem::exists(path))
+  {
+    return false;
+  }
+
+  for (const auto &entry : std::filesystem::recursive_directory_iterator(path))
+  {
+    if (entry.is_regular_file() && entry.path().filename() == filename)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+std::string join(const std::vector<std::string> &vec, std::string delimeter)
+{
+  std::ostringstream stream;
+  for (auto &elem : vec)
+  {
+    stream << elem << delimeter;
+  }
+  return stream.str();
+}
 
 class Command
 {
 public:
   std::vector<std::string> paths;
-
-  Command(std::vector<std::string> _paths)
-  {
-    paths = _paths;
-  }
+  Command() = default;
+  Command(std::vector<std::string> _paths) : paths(_paths) {};
 
   virtual int execute(std::string &input)
   {
@@ -54,7 +86,7 @@ public:
   using Command::Command;
   virtual int execute(std::string &input)
   {
-    std::cout << input.substr(6) << std::endl;
+    std::cout << input.substr(5) << std::endl;
     return 0;
   }
 };
@@ -65,17 +97,17 @@ public:
   using Command::Command;
   virtual int execute(std::string &input)
   {
-    std::string cmd = input.substr(6, input.length() - 6);
+    std::string cmd = input.substr(5, input.length() - 5);
     std::string cmdpath = "";
     bool found = false;
-    /*
+
     // check for shell built ins
-    if (commands.find(cmd) != commands.end())
+    if (builtin.find(cmd) != builtin.end())
     {
       std::cout << cmd << " is a shell builtin" << std::endl;
       return 0;
     }
-    */
+  
 
     // check in PATH dirs
     for (std::string p : paths)
@@ -138,49 +170,10 @@ public:
   }
 };
 
-std::vector<std::string> split(const std::string &s, char delim)
-{
-  std::vector<std::string> elems;
-  std::stringstream ss(s);
-  std::string item;
-  while (std::getline(ss, item, delim))
-  {
-    elems.push_back(item);
-  }
-  return elems;
-}
-
-Command getCmd(std::string cmdtype, std::unordered_map<std::string, Command &> cmds)
-{
-  return (Command)cmds[cmdtype];
-}
-
-bool exists(const std::filesystem::path &path, const std::string &filename)
-{
-  if (!std::filesystem::exists(path))
-  {
-    return false;
-  }
-
-  for (const auto &entry : std::filesystem::recursive_directory_iterator(path))
-  {
-    if (entry.is_regular_file() && entry.path().filename() == filename)
-    {
-      return true;
+void freecommands(std::unordered_map<std::string, Command *> commands){
+    for (const auto& pair : commands) {
+        delete pair.second;
     }
-  }
-
-  return false;
-}
-
-std::string join(const std::vector<std::string> &vec, std::string delimeter)
-{
-  std::ostringstream stream;
-  for (auto &elem : vec)
-  {
-    stream << elem << delimeter;
-  }
-  return stream.str();
 }
 
 int main()
@@ -189,14 +182,14 @@ int main()
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
-  std::unordered_map<std::string, Command &> commands;
+  std::unordered_map<std::string, Command *> commands;
   const char *path = std::getenv("PATH");
   std::vector<std::string> paths = split(path, ':');
 
-  commands["exit"] = Exit(paths);
-  commands["echo"] = Echo(paths);
-  commands["type"] = Type(paths);
-  commands["unknown"] = Unknown(paths);
+  commands["exit"] = new Exit(paths);
+  commands["echo"] = new Echo(paths);
+  commands["type"] = new Type(paths);
+  commands["unknown"] = new Unknown(paths);
 
   while (true)
   {
@@ -207,11 +200,17 @@ int main()
     std::vector<std::string> splitcmds = split(input, ' ');
     std::string cmdtype = splitcmds.at(0);
 
-    Command c = getCmd(cmdtype, commands);
-    c.execute(input);
-    if (c.should_exit()){
+    Command c;
+    if (commands.find(cmdtype) == commands.end())
+    {
+      commands["unknown"]->execute(input);
+      continue;
+    }
+    commands[cmdtype]->execute(input);
+    if (commands[cmdtype]->should_exit())
+    {
+      freecommands(commands);
       return 0;
     }
-
   }
 }
