@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <set>
 
-std::set<std::string> builtin = {"exit", "echo", "type", "pwd"};
+std::set<std::string> builtin = {"exit", "echo", "type", "pwd", "cd"};
 
 std::vector<std::string> split(const std::string &s, char delim)
 {
@@ -176,7 +176,29 @@ public:
   virtual int execute(std::string &input)
   {
     std::filesystem::path currentPath = std::filesystem::current_path();
-    std::cout <<  currentPath.string() << std::endl;
+    std::cout << currentPath.string() << std::endl;
+    return 0;
+  }
+};
+
+class Cd : public Command
+{
+public:
+  using Command::Command;
+  virtual int execute(std::string &input)
+  {
+    std::vector<std::string> splitcmds = split(input, ' ');
+    std::string path = splitcmds.at(1);
+    std::filesystem::path path_to_check(path);
+
+    if (!std::filesystem::exists(path_to_check))
+    {
+      std::cout << "cd: " << path << ": No such file or directory" << std::endl;
+      return 0;
+    }
+
+    std::filesystem::current_path(path);
+
     return 0;
   }
 };
@@ -204,6 +226,7 @@ int main()
   commands["type"] = new Type(paths);
   commands["unknown"] = new Unknown(paths);
   commands["pwd"] = new Pwd(paths);
+  commands["cd"] = new Cd(paths);
 
   while (true)
   {
