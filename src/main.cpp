@@ -189,6 +189,11 @@ public:
   {
     std::vector<std::string> splitcmds = split(input, ' ');
     std::string path = splitcmds.at(1);
+    if (path == "~"){
+      std::filesystem::current_path(getenv("HOME"));
+      return 0;
+    }
+
     std::filesystem::path path_to_check(path);
 
     if (!std::filesystem::exists(path_to_check))
